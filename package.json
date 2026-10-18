@@ -1,0 +1,32 @@
+{
+  "name": "trace-board-backend",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/api",
+    "packages/contracts"
+  ],
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "scripts": {
+    "build:contracts": "npm run build -w @traceboard/contracts",
+    "dev": "npm run build:contracts && npm run dev -w @traceboard/api",
+    "start": "npm run start -w @traceboard/api",
+    "build": "npm run build:contracts && npm run build -w @traceboard/api",
+    "typecheck": "npm run build:contracts && npm run typecheck --workspaces",
+    "lint": "npm run lint -w @traceboard/api",
+    "test": "npm run build:contracts && npm run test -w @traceboard/api",
+    "check:architecture": "node scripts/check-architecture.mjs --self-test",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "check:contracts": "node scripts/check-contracts.mjs",
+    "db:setup": "node scripts/database.mjs setup",
+    "db:stop": "node scripts/database.mjs stop",
+    "db:migrate": "npm run build:contracts && npm run db:migrate -w @traceboard/api",
+    "test:integration": "npm run build && npm run test:integration -w @traceboard/api"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

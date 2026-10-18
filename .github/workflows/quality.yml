@@ -1,0 +1,46 @@
+name: Quality
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check:secrets
+      - run: npm run check:contracts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run check:architecture
+      - run: npm test
+      - run: npm run build
+      - name: Start isolated test database
+        shell: bash
+        run: |
+          password=$(node -e "console.log(require('node:crypto').randomBytes(24).toString('hex'))")
+          echo "::add-mask::$password"
+          docker run --detach --name traceboard-test-db -e POSTGRES_USER=traceboard_ci -e POSTGRES_DB=traceboard_test -e POSTGRES_PASSWORD="$password" -p 127.0.0.1:55432:5432 postgres:18
+          echo "TEST_DATABASE_URL=postgresql://traceboard_ci:${password}@127.0.0.1:55432/traceboard_test" >> "$GITHUB_ENV"
+          for attempt in {1..60}; do
+            if docker exec traceboard-test-db pg_isready -U traceboard_ci -d traceboard_test; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - run: npm run test:integration
+      - name: Stop isolated test database
+        if: always()
+        run: docker rm --force traceboard-test-db
