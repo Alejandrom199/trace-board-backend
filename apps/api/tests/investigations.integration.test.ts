@@ -7,12 +7,14 @@ import { createApi } from '../src/app.js';
 import { databaseUrl } from '../src/database/config.js';
 import { createDatabasePool } from '../src/database/pool.js';
 import { migrate } from '../src/database/migrate.js';
+import { PostgresFilesRepository, PostgresInvestigationsRepository } from '../src/features/investigations/index.js';
 
 let pool: Pool; let app: INestApplication; let base: string;
+const apiForPool = (value: Pool) => createApi({ investigations: new PostgresInvestigationsRepository(value), files: new PostgresFilesRepository(value) });
 beforeAll(async () => {
   const url = databaseUrl(true);
   if (!new URL(url).pathname.endsWith('/traceboard_test')) throw new Error('Las pruebas necesitan la base aislada traceboard_test');
-  pool = createDatabasePool(url); await migrate(pool); app = await createApi(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
+  pool = createDatabasePool(url); await migrate(pool); app = await apiForPool(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
 });
 afterAll(async () => { await app?.close(); await pool?.end(); });
 describe('API HTTP con PostgreSQL real', () => {
@@ -38,7 +40,7 @@ describe('API HTTP con PostgreSQL real', () => {
     const repeated = fileDtoSchema.parse(await (await upload(investigation.id, png, name)).json()); expect(repeated).toEqual(file);
     const board = content(); board.assets = [{ id: 'file', name, mime: file.mime, size: file.size, file: { id: file.id, sha256: file.sha256 } }];
     expect((await put(investigation.id, 0, board)).status).toBe(200);
-    await app.close(); await pool.end(); pool = createDatabasePool(databaseUrl(true)); app = await createApi(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
+    await app.close(); await pool.end(); pool = createDatabasePool(databaseUrl(true)); app = await apiForPool(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
     const downloaded = await fetch(base + '/api/investigations/' + investigation.id + '/files/' + file.id + '?download=1');
     expect(downloaded.status).toBe(200); expect(downloaded.headers.get('content-type')).toContain('image/png'); expect(downloaded.headers.get('x-content-type-options')).toBe('nosniff');
     expect(downloaded.headers.get('content-disposition')).toContain('attachment'); expect(downloaded.headers.get('content-disposition')).toContain('%C3%B1');
@@ -77,7 +79,7 @@ describe('API HTTP con PostgreSQL real', () => {
     expect(initial.revision).toBe(0); expect(initial.content).toBeNull();
     const response = await put(investigation.id, 0, board); expect(response.status).toBe(200);
     const saved = boardDtoSchema.parse(await response.json()); expect(saved.revision).toBe(1); expect(saved.content).toEqual(board);
-    await app.close(); await pool.end(); pool = createDatabasePool(databaseUrl(true)); app = await createApi(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
+    await app.close(); await pool.end(); pool = createDatabasePool(databaseUrl(true)); app = await apiForPool(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
     const reopened = boardDtoSchema.parse(await (await fetch(base + '/api/investigations/' + investigation.id + '/board')).json());
     expect(reopened).toEqual(saved);
     const replacement = { ...board, entities: [], edges: [], elements: [], assets: [] };
@@ -112,7 +114,7 @@ describe('API HTTP con PostgreSQL real', () => {
     expect(dto.name).toBe(body.name); expect(dto.description).toBe(body.description);
     const listed = investigationListSchema.parse(await (await fetch(base + '/api/investigations')).json());
     expect(listed.some(item => item.id === dto.id)).toBe(true);
-    await app.close(); await pool.end(); pool = createDatabasePool(databaseUrl(true)); app = await createApi(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
+    await app.close(); await pool.end(); pool = createDatabasePool(databaseUrl(true)); app = await apiForPool(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
     const reopened = await fetch(base + '/api/investigations/' + dto.id); expect(reopened.status).toBe(200);
     expect(investigationDtoSchema.parse(await reopened.json())).toEqual(dto);
   });
@@ -141,7 +143,7 @@ describe('API HTTP con PostgreSQL real', () => {
     const unavailableUrl = new URL('postgresql://unused@127.0.0.1:1/traceboard_test');
     unavailableUrl.password = credential;
     const unavailable = createDatabasePool(unavailableUrl.toString());
-    const api = await createApi(unavailable); await api.listen(0, '127.0.0.1');
+    const api = await apiForPool(unavailable); await api.listen(0, '127.0.0.1');
     try { const response = await fetch((await api.getUrl()) + '/api/investigations'); expect(response.status).toBe(503); const raw = await response.text(); expect(raw).not.toContain(credential); expect(raw).not.toContain('postgresql'); }
     finally { await api.close(); await unavailable.end(); }
   });

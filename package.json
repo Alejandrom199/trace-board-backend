@@ -24,7 +24,9 @@
     "db:setup": "node scripts/database.mjs setup",
     "db:stop": "node scripts/database.mjs stop",
     "db:migrate": "npm run build:contracts && npm run db:migrate -w @traceboard/api",
-    "test:integration": "npm run build && npm run test:integration -w @traceboard/api"
+    "test:integration": "npm run build && npm run test:integration -w @traceboard/api",
+    "build:api": "npm run build:contracts && npm run build -w @traceboard/api",
+    "start:api": "npm run start -w @traceboard/api"
   },
   "devDependencies": {
     "typescript": "6.0.3"

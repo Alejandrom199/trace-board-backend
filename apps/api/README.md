@@ -1,5 +1,9 @@
 # TraceBoard API
 
+La API puede usar PostgreSQL (`TRACEBOARD_STORAGE=postgres`) o memoria efímera (`TRACEBOARD_STORAGE=memory`). Railway usa memoria: no necesita base de datos y puede perder todos los datos remotos al suspenderse o reiniciarse. El tablero durable permanece en IndexedDB del frontend.
+
+En producción son obligatorios `TRACEBOARD_API_TOKEN` (mínimo 32 caracteres), `HOST=0.0.0.0` y el puerto asignado por la plataforma. `/api/health` permanece público; `/api/investigations` exige `Authorization: Bearer` cuando hay token configurado.
+
 NestJS en aplicación independiente. Dominio y casos de uso en `src/features/investigations`, adaptador PostgreSQL y composición en `src/app.ts`. Comparte únicamente DTO/esquemas HTTP con `@traceboard/contracts`.
 
 Desde la raíz del proyecto:
