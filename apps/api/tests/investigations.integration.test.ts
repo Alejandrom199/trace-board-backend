@@ -23,7 +23,7 @@ describe('API HTTP con PostgreSQL real', () => {
     return { entities: [
       { id: 'doc', kind: 'document', title: 'Entrevista', description: 'Se venden productos agotados', createdAt: now, updatedAt: now, assetId: 'file' },
       { id: 'finding', kind: 'finding', title: 'Stock desactualizado', description: '', createdAt: now, updatedAt: now },
-      { id: 'req', kind: 'requirement', title: 'Actualizar stock', description: '', createdAt: now, updatedAt: now, requirement: { code: 'RF-001', priority: 'high', status: 'draft', criteria: ['Registrar ventas'] } },
+      { id: 'req', kind: 'requirement', title: 'Actualizar stock', description: '', createdAt: now, updatedAt: now, requirement: { code: 'RF-001', type: 'functional', priority: 'high', status: 'draft', criteria: ['Registrar ventas'] } },
     ], edges: [
       { id: 'e1', sourceId: 'doc', targetId: 'finding', relation: 'evidences', description: 'Fuente', createdAt: now, metadata: {} },
       { id: 'e2', sourceId: 'finding', targetId: 'req', relation: 'originates', description: '', createdAt: now, metadata: {} },
@@ -117,6 +117,15 @@ describe('API HTTP con PostgreSQL real', () => {
     await app.close(); await pool.end(); pool = createDatabasePool(databaseUrl(true)); app = await apiForPool(pool); await app.listen(0, '127.0.0.1'); base = await app.getUrl();
     const reopened = await fetch(base + '/api/investigations/' + dto.id); expect(reopened.status).toBe(200);
     expect(investigationDtoSchema.parse(await reopened.json())).toEqual(dto);
+  });
+  it('elimina una investigación con sus archivos y responde 404 después', async () => {
+    const dto = await create();
+    expect((await upload(dto.id, png)).status).toBe(201);
+    const removed = await fetch(base + '/api/investigations/' + dto.id, { method: 'DELETE' }); expect(removed.status).toBe(204);
+    expect((await fetch(base + '/api/investigations/' + dto.id)).status).toBe(404);
+    expect((await pool.query('SELECT count(*)::int AS total FROM investigation_files f LEFT JOIN investigations i ON i.id=f.investigation_id WHERE i.id IS NULL')).rows[0].total).toBe(0);
+    expect((await fetch(base + '/api/investigations/' + dto.id, { method: 'DELETE' })).status).toBe(404);
+    expect((await fetch(base + '/api/investigations/no-es-uuid', { method: 'DELETE' })).status).toBe(400);
   });
   it('valida entradas y distingue 400 de 404', async () => {
     const invalid = await fetch(base + '/api/investigations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: '   ' }) }); expect(invalid.status).toBe(400);

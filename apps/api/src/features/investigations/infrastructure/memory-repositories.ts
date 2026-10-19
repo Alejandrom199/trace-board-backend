@@ -54,6 +54,15 @@ export class InMemoryInvestigationsRepository implements InvestigationsRepositor
     record.investigation.updatedAt = now;
     return clone({ investigation: record.investigation, revision: record.revision, content: record.content });
   }
+  async remove(id: string): Promise<boolean> {
+    if (!this.store.investigations.delete(id)) return false;
+    for (const [key, file] of this.store.files) {
+      if (file.info.investigationId !== id) continue;
+      this.store.files.delete(key);
+      this.store.totalFileBytes -= file.bytes.byteLength;
+    }
+    return true;
+  }
 }
 export class InMemoryFilesRepository implements FilesRepository {
   constructor(private readonly state: InMemoryTraceBoardStore) {}

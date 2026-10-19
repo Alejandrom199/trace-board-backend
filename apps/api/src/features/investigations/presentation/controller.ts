@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Put, BadRequestException, UnsupportedMediaTypeException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Inject, Param, Post, Put, BadRequestException, UnsupportedMediaTypeException } from '@nestjs/common';
 import { createInvestigationRequestSchema, investigationDtoSchema, investigationListSchema, boardDtoSchema, saveBoardRequestSchema } from '@traceboard/contracts';
 import { z } from 'zod';
 import type { Investigations } from '../application/investigations.js';
@@ -19,6 +19,12 @@ export class InvestigationsController {
   async find(@Param('id') id: string) {
     if (!z.uuid().safeParse(id).success) throw new BadRequestException('Identificador de investigación inválido');
     return investigationDtoSchema.parse(await this.investigations.find(id));
+  }
+  @Delete(':id')
+  @HttpCode(204)
+  async remove(@Param('id') id: string) {
+    if (!z.uuid().safeParse(id).success) throw new BadRequestException('Identificador de investigación inválido');
+    await this.investigations.remove(id);
   }
   @Get(':id/board')
   async board(@Param('id') id: string) {

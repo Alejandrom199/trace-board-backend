@@ -36,6 +36,16 @@ describe('adaptadores temporales en memoria', () => {
     const board = emptyBoard(); board.assets.push({ id: 'asset', name: stored.info.name, mime: stored.info.mime, size: stored.info.size, file: { id: stored.info.id, sha256: stored.info.sha256 } });
     expect((await investigations.saveBoard(investigation().id, 0, board, '2026-10-18T00:01:00.000Z')).content).toEqual(board);
   });
+  it('elimina la investigación y libera sus archivos', async () => {
+    const store = new InMemoryTraceBoardStore();
+    const investigations = new InMemoryInvestigationsRepository(store); const files = new InMemoryFilesRepository(store);
+    await investigations.create(investigation()); await investigations.create(investigation('00000000-0000-4000-8000-000000000009'));
+    await files.store({ info: { id: '00000000-0000-4000-8000-000000000002', investigationId: investigation().id, name: 'a.pdf', mime: 'application/pdf', size: 3, sha256: 'hash', createdAt: '2026-10-18T00:00:00.000Z' }, bytes: new Uint8Array([1, 2, 3]) });
+    expect(await investigations.remove(investigation().id)).toBe(true);
+    expect(await investigations.find(investigation().id)).toBeNull(); expect(store.files.size).toBe(0); expect(store.totalFileBytes).toBe(0);
+    expect(await investigations.find('00000000-0000-4000-8000-000000000009')).not.toBeNull();
+    expect(await investigations.remove(investigation().id)).toBe(false);
+  });
   it('no acepta archivos para investigaciones inexistentes', async () => {
     const files = new InMemoryFilesRepository(new InMemoryTraceBoardStore());
     const stored: StoredFile = { info: { id: '00000000-0000-4000-8000-000000000002', investigationId: investigation().id, name: 'evidencia.pdf', mime: 'application/pdf', size: 5, sha256: 'hash', createdAt: '2026-10-18T00:00:00.000Z' }, bytes: new Uint8Array([37, 80, 68, 70, 45]) };

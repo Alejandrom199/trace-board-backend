@@ -26,6 +26,7 @@ La API escucha en http://127.0.0.1:4000. Lee la conexión de `.local/database.js
 | GET | /api/investigations/:id | Metadatos por UUID público |
 | GET | /api/investigations/:id/board | Investigación, revisión y contenido; null si nunca se guardó |
 | PUT | /api/investigations/:id/board | JSON `{ "expectedRevision": 0, "content": { "entities": [], "edges": [], "elements": [], "assets": [] } }`; revisión incrementada y contenido confirmado |
+| DELETE | /api/investigations/:id | 204; elimina la investigación, su tablero y sus archivos. 404 si no existe. No afecta copias locales |
 | POST | /api/investigations/:id/files | Bytes application/octet-stream, X-File-Name codificado con encodeURIComponent y X-File-Mime; 201 con UUID, nombre, MIME, tamaño y SHA-256. Hasta 10 MiB. |
 | GET | /api/investigations/:id/files/:fileId | Bytes originales; ?download=1 genera Content-Disposition attachment. 404 para archivo ajeno/inexistente. |
 

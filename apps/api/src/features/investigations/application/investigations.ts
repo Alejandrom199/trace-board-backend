@@ -5,6 +5,8 @@ export interface InvestigationsRepository {
   create(investigation: Investigation): Promise<Investigation>; list(): Promise<Investigation[]>; find(id: string): Promise<Investigation | null>;
   board(id: string): Promise<StoredBoard | null>;
   saveBoard(id: string, revision: number, content: BoardContent, now: string): Promise<StoredBoard>;
+  /** Elimina la investigación, su tablero y sus archivos; devuelve false si no existía. */
+  remove(id: string): Promise<boolean>;
 }
 export class Investigations {
   constructor(private readonly repository: InvestigationsRepository, private readonly values: { id(): string; now(): string }) {}
@@ -23,5 +25,8 @@ export class Investigations {
   saveBoard(id: string, revision: number, content: BoardContent) {
     assertBoardIntegrity(content);
     return this.repository.saveBoard(id, revision, content, this.values.now());
+  }
+  async remove(id: string) {
+    if (!await this.repository.remove(id)) throw new InvestigationNotFoundError('La investigación no existe');
   }
 }

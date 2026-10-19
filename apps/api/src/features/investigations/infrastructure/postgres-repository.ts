@@ -49,6 +49,14 @@ export class PostgresInvestigationsRepository implements InvestigationsRepositor
       throw new RepositoryUnavailableError('No se pudo guardar el tablero. Tu copia local se conserva.');
     }
   }
+  async remove(id: string): Promise<boolean> {
+    // Una sola sentencia: los archivos y la investigación se eliminan juntos o no se elimina nada.
+    try {
+      const result = await this.pool.query(`WITH target AS (SELECT id FROM investigations WHERE public_id=$1), removed_files AS (DELETE FROM investigation_files WHERE investigation_id IN (SELECT id FROM target))
+        DELETE FROM investigations WHERE id IN (SELECT id FROM target) RETURNING public_id`, [id]);
+      return result.rows.length > 0;
+    } catch { throw new RepositoryUnavailableError('No se pudo eliminar la investigación'); }
+  }
 }
 function fromBoardRow(row: unknown): StoredBoard {
   const data = z.object({ board_revision: z.number().int().min(0), board_content: boardContentSchema.nullable() }).parse(row);
