@@ -12,7 +12,8 @@ async function main() {
   const investigations = pool ? new PostgresInvestigationsRepository(pool) : new InMemoryInvestigationsRepository(memory!);
   const files = pool ? new PostgresFilesRepository(pool) : new InMemoryFilesRepository(memory!);
   const allowedOrigins = process.env.TRACEBOARD_ALLOWED_ORIGINS?.split(',').map(value => value.trim()).filter(Boolean);
-  const app = await createApi({ investigations, files, accessToken, allowedOrigins });
+  const ai = { token: process.env.HF_API_TOKEN, model: process.env.HF_MODEL ?? 'Qwen/Qwen2.5-7B-Instruct' };
+  const app = await createApi({ investigations, files, accessToken, allowedOrigins, ai });
   app.getHttpAdapter().getInstance().disable('x-powered-by');
   const host = process.env.HOST ?? '127.0.0.1';
   await app.listen(Number(process.env.PORT ?? 4000), host);

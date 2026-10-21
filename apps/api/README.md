@@ -2,9 +2,11 @@
 
 La API puede usar PostgreSQL (`TRACEBOARD_STORAGE=postgres`) o memoria efímera (`TRACEBOARD_STORAGE=memory`). Railway usa memoria: no necesita base de datos y puede perder todos los datos remotos al suspenderse o reiniciarse. El tablero durable permanece en IndexedDB del frontend.
 
-En producción son obligatorios `TRACEBOARD_API_TOKEN` (mínimo 32 caracteres), `HOST=0.0.0.0` y el puerto asignado por la plataforma. `/api/health` permanece público; `/api/investigations` exige `Authorization: Bearer` cuando hay token configurado.
+En producción son obligatorios `TRACEBOARD_API_TOKEN` (mínimo 32 caracteres), `HOST=0.0.0.0` y el puerto asignado por la plataforma. `/api/health` permanece público; `/api/investigations` y `/api/ai` exigen `Authorization: Bearer` cuando hay token configurado.
 
-NestJS en aplicación independiente. Dominio y casos de uso en `src/features/investigations`, adaptador PostgreSQL y composición en `src/app.ts`. Comparte únicamente DTO/esquemas HTTP con `@traceboard/contracts`.
+`HF_API_TOKEN` y `HF_MODEL` son opcionales y habilitan la generación de flujo con IA. Sin `HF_API_TOKEN` el resto de la API funciona igual y solo ese endpoint responde 503. Ver ADR-009.
+
+NestJS en aplicación independiente. Dominio y casos de uso en `src/features/investigations`, adaptador PostgreSQL y composición en `src/app.ts`. `src/features/ai-flow` es un feature separado y sin persistencia para la propuesta de flujo con IA. Comparte únicamente DTO/esquemas HTTP con `@traceboard/contracts`.
 
 Desde la raíz del proyecto:
 
@@ -29,8 +31,9 @@ La API escucha en http://127.0.0.1:4000. Lee la conexión de `.local/database.js
 | DELETE | /api/investigations/:id | 204; elimina la investigación, su tablero y sus archivos. 404 si no existe. No afecta copias locales |
 | POST | /api/investigations/:id/files | Bytes application/octet-stream, X-File-Name codificado con encodeURIComponent y X-File-Mime; 201 con UUID, nombre, MIME, tamaño y SHA-256. Hasta 10 MiB. |
 | GET | /api/investigations/:id/files/:fileId | Bytes originales; ?download=1 genera Content-Disposition attachment. 404 para archivo ajeno/inexistente. |
+| POST | /api/ai/generate-flow | Bytes application/octet-stream de un PDF con texto o .txt/.md, con X-File-Name y X-File-Mime; devuelve `{ "flow": { "entities": [], "relations": [] }, "truncated": false }`. Hasta 10 MiB; no persiste nada. |
 
-Errores: 400 entrada inválida, 404 inexistente, 415 contenido distinto de JSON al crear y 503 base no disponible. Las consultas son parametrizadas; no se exponen contraseñas, SQL ni stack traces en esas respuestas.
+Errores: 400 entrada inválida, 404 inexistente, 415 contenido distinto de JSON al crear y 503 base no disponible. En `/api/ai/generate-flow`, 400 documento inválido o sin texto suficiente, 502 fallo del proveedor de IA y 503 generación no configurada. Las consultas son parametrizadas; no se exponen contraseñas, SQL ni stack traces en esas respuestas.
 
 Este incremento guarda metadatos y contenido del tablero (tarjetas, relaciones, posiciones, viewport y metadatos de archivos). Un snapshot JSONB validado se actualiza atómicamente con su revisión en la misma fila. Una revisión obsoleta produce 409; una entrada de más de 8 MiB produce 413. Los binarios y las URLs no se aceptan. La validación también comprueba referencias, posiciones, IDs/códigos únicos y propiedades de requisitos. No tiene autenticación y está ligado a loopback para uso local; no es un servicio público listo para desplegar.
 
